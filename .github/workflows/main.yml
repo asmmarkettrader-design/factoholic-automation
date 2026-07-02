@@ -1,31 +1,57 @@
-name: Factoholic Auto Uploader via Buffer
+name: Factoholic Automated Viral Engine via Buffer
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    - cron: '0 12 * * *'  # روزانہ پاکستانی وقت کے مطابق شام 5 بجے (UTC 12:00) خود چلے گا
+    # دن میں دو بار: صبح 04:00 UTC (09:00 AM PKT/IST) اور دوپہر 14:00 UTC (07:00 PM PKT/IST)
+    - cron: '0 4 * * *'
+    - cron: '0 14 * * *'
+  workflow_dispatch: # مینول رن کرنے کا بٹن
 
 jobs:
-  post-video:
+  viral_upload_slot:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Python
+    - name: Configure Python Environment
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Install Dependencies
+    - name: Mount FFmpeg Engine & Packages
       run: |
-        python -m pip install --upgrade pip
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
         pip install -r requirements.txt
 
-    - name: Execute Automation Script
+    - name: Run Factoholic Automation Script
       env:
-        BUFFER_API_TOKEN: ${{ secrets.BUFFER_API_TOKEN }} # گٹ ہب سیکریٹ کا استعمال
+        BUFFER_API_TOKEN: ${{ secrets.BUFFER_API_TOKEN }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: python script.py
+
+    - name: Secure Git History Auto-Sync
+      run: |
+        git config --global user.name "Factoholic Action Bot"
+        git config --global user.email "actions@github.com"
+        
+        # ہسٹری فائل کو محفوظ کرنا تاکہ ڈبل اپلوڈ بلاک رہے
+        git add uploaded_history.txt || true
+        
+        # اگر ویڈیوز لوکل ورک اسپیس سے مٹ گئی ہیں تو گٹ ہب میں بھی سنک کریں
+        git add videos/ || true
+        git status
+        
+        # نیٹ ورک یا پش کلیش کو بائی پاس کرنے کی سیف کمانڈز
+        git stash || true
+        git pull --rebase origin main || true
+        git stash pop || true
+        
+        # فائنل رزلٹ پش
+        git add uploaded_history.txt videos/ || true
+        git commit -m "🤖 Bot Log: Synced workspace and locked uploaded tracking data" || true
+        git push origin main || true
