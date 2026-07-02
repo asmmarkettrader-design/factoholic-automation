@@ -16,7 +16,6 @@ HISTORY_FILE = "uploaded_history.txt"
 BUFFER_TOKEN = os.getenv("BUFFER_API_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# گٹ ہب ریپو کی معلومات (ویڈیو کا پبلک را لنک بنانے کے لیے)
 GITHUB_USER = os.getenv("GITHUB_REPOSITORY_OWNER", "YOUR_GITHUB_USERNAME")
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY", "YOUR_REPO_NAME").split("/")[-1]
 
@@ -35,49 +34,47 @@ if not os.path.exists(HISTORY_FILE):
         f.write("")
 
 # =====================================================================
-# 100% Anti-Copyright Video Engine (Preserving Thumbnail & Text)
+# 100% Anti-Copyright Video Engine
 # =====================================================================
 def process_video_for_algorithm_bypass(input_path, output_path):
     print(f"🎬 [ANTI-COPYRIGHT ENGINE] Restructuring pixels for: {os.path.basename(input_path)}")
     
-    # ٹیکسٹ اور تھمب نیل کو بچانے کے لیے فلپنگ کے بغیر پکسل میٹا ڈیٹا چینج فلٹر
     video_filter = (
         "scale=1080:1920:force_original_aspect_ratio=increase,"
         "crop=1080:1920,"
-        "setpts=0.98*PTS,"                       # ویڈیو کی رفتار 2٪ تیز کرنا تاکہ ریٹینشن بڑھے
-        "scale=iw*1.05:-1,crop=1080:1920,"       # معمولی زوم تاکہ فریم بارڈرز بدل جائیں
+        "setpts=0.98*PTS,"                       # 2% تیز رفتار
+        "scale=iw*1.05:-1,crop=1080:1920,"       # مائنر زوم بارڈرز چینج کرنے کے لیے
         "eq=brightness=0.02:contrast=1.04:saturation=1.05," # ہلکی ڈیجیٹل کلر گریڈنگ
-        "noise=alls=2:allf=t"                    # الگورتھم بائی پاس کرنے کے لیے مائنر ڈیجیٹل نوائس
+        "noise=alls=2:allf=t"                    # الگورتھم بائی پاس کرنے کے لیے پکسل نوائس
     )
     
-    # آڈیو فریکوئنسی اور پچ ٹویک فلٹر (آواز آگے پیچھے نہیں ہوگی لیکن فنگر پرنٹ مٹ جائے گا)
     audio_filter = "asetrate=44100*1.02,atempo=1/1.02,atempo=1.02"
 
     cmd = [
         'ffmpeg', '-y',
-        '-ss', '00:00:00', '-t', '57',          # فکسڈ 00:00 اسٹارٹ تاکہ فیکٹوہولک تھمب نیل لاک رہے
+        '-ss', '00:00:00', '-t', '57',          # فکسڈ 00:00 اسٹارٹ (تھمب نیل سیف)
         '-i', input_path,
         '-async', '1',
         '-vf', video_filter,
         '-af', audio_filter,
         '-r', '30',
-        '-c:v', 'libx264', '-crf', '17', '-preset', 'fast',  # کرسپ ایچ ڈی کوالٹی
+        '-c:v', 'libx264', '-crf', '17', '-preset', 'fast',
         '-c:a', 'aac', '-b:a', '320k', '-ar', '44100',
         output_path
     ]
     try:
         subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        print("✅ Original footprint destroyed successfully! Unique metadata frame generated.")
+        print("✅ Footprint cleaned! Thumbnail maintained safely.")
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ FFmpeg Processing Error: {e.stderr.decode('utf-8', errors='ignore')}")
         return False
 
 # =====================================================================
-# جیمنائی انڈپیک ہائی سی ٹی آر ایس ای او میکر (Gemini 2.5)
+# جیمنائی انڈپیک آٹو ماڈل سلیکشن ایس ای او انجن
 # =====================================================================
 def generate_viral_metadata(original_title):
-    print(f"🤖 [GEMINI AI] Generating High-CTR SEO Strategy for: {original_title}")
+    print(f"🤖 [GEMINI AI] Generating High-CTR SEO via Auto-Model Selection for: {original_title}")
     
     prompt = f"""
     You are an elite YouTube Shorts & Facebook Reels algorithm specialist optimizing facts content for the Indian, Pakistani, and South Asian markets (Factoholic style, Hindi/Urdu audience).
@@ -100,6 +97,7 @@ def generate_viral_metadata(original_title):
     }}
     """
     try:
+        # آٹو ماڈل سلیکشن (gemini-2.5-flash) بہترین رزلٹ اور ہائی اسپیڈ کے لیے
         response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         clean_text = response.text.strip()
         if clean_text.startswith("```"):
@@ -107,7 +105,6 @@ def generate_viral_metadata(original_title):
         
         metadata = json.loads(clean_text)
         
-        # سیفٹی چیکس فورس ہیش ٹیگز
         if "#shorts" not in metadata["title"]:
             metadata["title"] += " #shorts"
         for tag in ["#shorts", "#factoholic", "#facts", "#viral", "#reels", "#trending"]:
@@ -119,12 +116,12 @@ def generate_viral_metadata(original_title):
         print(f"⚠️ Gemini Fallback Triggered due to error: {e}")
         return {
             "title": f"This Will Shock You! 😱 #shorts",
-            "description": f"Mind blowing facts regarding {original_title}. Trending Searches: amazing facts, hindi random facts. #shorts #viral #reels #factoholic #facts #trending",
+            "description": f"Mind blowing facts regarding {original_title}. Trending Searches: amazing facts. #shorts #viral #reels #factoholic #facts #trending",
             "tags": ["factoholic", "facts", "amazing facts"]
         }
 
 # =====================================================================
-# بفر اے پی آئی انٹیگریشن (Buffer Engine)
+# بفر اے پی آئی انجن
 # =====================================================================
 def get_buffer_profiles():
     url = f"https://api.bufferapp.com/1/profiles.json?access_token={BUFFER_TOKEN}"
@@ -141,7 +138,6 @@ def get_buffer_profiles():
 
 def upload_via_buffer(profile_ids, video_url, metadata):
     url = f"https://api.bufferapp.com/1/updates/create.json?access_token={BUFFER_TOKEN}"
-    
     full_text = f"{metadata['title']}\n\n{metadata['description']}\nTags: {', '.join(metadata['tags'])}"
     
     payload = {
@@ -164,9 +160,6 @@ def upload_via_buffer(profile_ids, video_url, metadata):
         print(f"❌ Buffer API Call Error: {e}")
         return False
 
-# =====================================================================
-# ہسٹری ٹریکنگ لاجک (Double Upload Blocker)
-# =====================================================================
 def is_already_uploaded(video_name):
     with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
         return video_name in f.read().splitlines()
@@ -176,12 +169,12 @@ def mark_as_uploaded(video_name):
         f.write(f"{video_name}\n")
 
 # =====================================================================
-# مین ورک فلو کنٹرولر
+# ورک فلو کنٹرولر
 # =====================================================================
 def main():
     video_files = glob.glob(os.path.join(VIDEOS_DIR, "*.mp4"))
     if not video_files:
-        print(f"📁 '{VIDEOS_DIR}' folder is completely empty. No videos to process.")
+        print(f"📁 '{VIDEOS_DIR}' folder is empty. No videos to process.")
         return
         
     profiles = get_buffer_profiles()
@@ -194,48 +187,31 @@ def main():
     for video_path in video_files:
         raw_filename = os.path.basename(video_path)
         
-        # 1. ڈبل اپلوڈ چیک
         if is_already_uploaded(raw_filename):
-            print(f"♻️ Skipping '{raw_filename}' (Already processed in past).")
+            print(f"♻️ Skipping '{raw_filename}' (Already processed).")
             if os.path.exists(video_path):
                 os.remove(video_path)
             continue
             
-        # فائل نیم سے ٹائٹل الگ کرنا (جیسے amazing_facts__1.mp4 -> amazing facts)
         clean_title_raw = os.path.splitext(raw_filename)[0].split("__")[0].replace("_", " ")
-        
-        # 2. جیمنائی سے ایس ای او ڈیٹا بنوانا
         metadata = generate_viral_metadata(clean_title_raw)
-        
         processed_video_path = os.path.join(PROCESSED_DIR, f"ready_{raw_filename}")
         
-        # 3. کاپی رائٹ فری پکسل رینڈرنگ
         if process_video_for_algorithm_bypass(video_path, processed_video_path):
-            
-            # گٹ ہب پر پش ہونے کے بعد جو پبلک را (Raw) لنک بنے گا وہ بفر کو پاس کرنا
-            # نوٹ: گٹ ہب ایکشن رن ہونے پر یہ لنک بالکل ویلیڈ ہوتا ہے
             public_video_url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/videos/{raw_filename}"
-            
-            # 4. بفر کے ذریعے فیس بک اور یوٹیوب پر پوسٹ
             uploaded = upload_via_buffer(profiles, public_video_url, metadata)
             
             if uploaded:
-                # 5. ہسٹری لاگ اپ ڈیٹ
                 mark_as_uploaded(raw_filename)
-                
-                # 6. آٹو ڈیلیٹ لوکل پروسیسڈ فائل
                 if os.path.exists(processed_video_path):
                     os.remove(processed_video_path)
-                    
-                # 7. اصل ویڈیو فائل کو ان پٹ فولڈر سے ہمیشہ کے لیے ڈیلیٹ کرنا
                 if os.path.exists(video_path):
                     os.remove(video_path)
-                    print(f"🗑️ Clean-up Action: Original video '{raw_filename}' deleted from workspace.")
-                
-                print("🏁 Slot completed successfully! Cross-posted to FB Page and YouTube.")
-                break  # ایک سلوٹ میں صرف ایک ویڈیو اپلوڈ ہوگی تاکہ اسپیم نہ لگے
+                    print(f"🗑️ Clean-up Action: Original video '{raw_filename}' deleted.")
+                print("🏁 Slot completed successfully!")
+                break  
         else:
-            print(f"⚠️ Error processing video framework for {raw_filename}")
+            print(f"⚠️ Error processing framework for {raw_filename}")
 
 if __name__ == "__main__":
     main()
