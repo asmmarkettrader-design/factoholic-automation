@@ -1,9 +1,12 @@
 name: Auto Upload Daily
 on:
   schedule:
-    # 13:00 UTC کا مطلب پاکستان کا شام 6:00 بجے اور انڈیا کا 6:30 بجے ہے
     - cron: '0 13 * * *'
-  workflow_dispatch: # یہ لائن مینوئل رن کے لیے ہے (جب آپ خود بٹن دبائیں)
+  workflow_dispatch:
+
+# یہ پرمیشن گٹ ہب ایکشن کو فائلیں ڈیلیٹ اور سیو کرنے کی اجازت دے گی (403 Error Fix)
+permissions:
+  contents: write
 
 jobs:
   upload:
@@ -31,12 +34,9 @@ jobs:
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          # اگر ہسٹری فائل نہیں بنی تو یہ خود بنا لے گا تاکہ ایرر نہ آئے
           touch history.txt  
           git add history.txt
-          # ویڈیوز کے فولڈر سے جو بھی فائل ڈیلیٹ ہوئی ہے، اسے اپڈیٹ کرنا
           git add -A videos/ || true
           git commit -m "Auto-update: History logged and processed video removed" || echo "No changes to commit"
-          # گٹ ہب پر پش کرنے سے پہلے نیا ڈیٹا پل (pull) کرنا تاکہ rejected والا ایرر نہ آئے
           git pull --rebase origin main
           git push
