@@ -3,13 +3,13 @@ import requests
 import sys
 import warnings
 
-# 1. Pillow کی فضول وارننگز کو چھپانے اور ہینڈل کرنے کا کوڈ
+# 1. Pillow کی وارننگز اور نئے ورژن کے بدلاؤ کو خودکار ہینڈل کرنے کا کوڈ
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import PIL.Image
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
 
-# 2. باقی ضروری امپورٹس (یہاں سے genai مسنگ تھا جو اب ڈال دیا گیا ہے)
+# 2. ضروری لائبریریز کی امپورٹ
 from moviepy.editor import VideoFileClip
 from google import genai 
 
@@ -19,40 +19,42 @@ MAKE_WEBHOOK_URL = os.getenv("BUFFER_WEBHOOK_URL")
 VIDEOS_DIR = "videos"
 HISTORY_FILE = "history.txt"
 
-# جیمنائی کلائنٹ
+# جیمنائی کلائنٹ کی شروعات
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_history():
+    """پہلے سے اپلوڈ شدہ ویڈیوز کی لسٹ پڑھنا"""
     if not os.path.exists(HISTORY_FILE):
         return set()
     with open(HISTORY_FILE, "r") as f:
         return set(line.strip() for line in f)
 
 def add_to_history(filename):
+    """نئی اپلوڈ ہونے والی ویڈیو کو ہسٹری میں لکھنا"""
     with open(HISTORY_FILE, "a") as f:
         f.write(filename + "\n")
 
 def process_video_hd(input_path, output_path):
-    """ویڈیو کو 1080p پر اپ گریڈ کرنا اور سائز کنٹرول کرنا"""
+    """ویڈیو کو 720p پر سیٹ کرنا تاکہ سائز Make.com کی لمٹ (413 Error) کے اندر رہے"""
     clip = VideoFileClip(input_path)
     
     # کاپی رائٹ فٹ پرنٹ ختم کرنے کے لیے ہلکا سا زوم
     processed_clip = clip.fx(lambda c: c.resize(1.01))
     
-    # ویڈیو کو 1080p رزلٹ اور کم سائز (1500k bitrate) میں سیو کرنا
+    # 720p (720x1280) اور 800k بٹ ریٹ تاکہ سائز 5MB کے آس پاس رہے اور کوالٹی بھی اچھی ہو
     processed_clip.write_videofile(
         output_path, 
         codec="libx264", 
         audio_codec="aac",
-        bitrate="1500k",
-        preset="slow", 
-        ffmpeg_params=["-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"]
+        bitrate="800k",
+        preset="fast",   # فائل سائز کو کنٹرول میں رکھنے اور جلدی پروسیس کرنے کے لیے
+        ffmpeg_params=["-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280"]
     )
     clip.close()
     processed_clip.close()
 
 def generate_seo(topic_name):
-    """SEO جنریشن ایرر ہینڈلنگ کے ساتھ"""
+    """جیمنائی کے ذریعے وائرل ایس ای او ڈیٹا بنانا (ایرر ہینڈلنگ کے ساتھ)"""
     default_seo = f"Title: {topic_name} 😱 | Viral Facts\n\nDescription: Amazing facts about {topic_name}. Subscribe for more!\n\nTags: #Shorts #Facts #Viral"
     
     if not client:
@@ -76,6 +78,7 @@ def main():
     files = [f for f in os.listdir(VIDEOS_DIR) if f.lower().endswith(('.mp4', '.mov'))]
     target_video = None
     
+    # ایسی ویڈیو ڈھونڈنا جو ہسٹری میں نہ ہو
     for f in files:
         if f not in history:
             target_video = f
@@ -88,7 +91,7 @@ def main():
     input_path = os.path.join(VIDEOS_DIR, target_video)
     output_path = os.path.join(VIDEOS_DIR, "processed_" + target_video)
     
-    print(f"🎬 Processing HD Video & Enhancing: {target_video}")
+    print(f"🎬 Processing Video (720p Optimised): {target_video}")
     try:
         process_video_hd(input_path, output_path)
     except Exception as e:
@@ -110,17 +113,19 @@ def main():
             print("🚀 Successfully uploaded to Make.com!")
             add_to_history(target_video)
             
-            # فائلیں صاف کرنا
+            # کام مکمل ہونے پر فائلیں سرور سے ڈیلیٹ کرنا
             os.remove(input_path)
             os.remove(output_path)
-            print("🗑️ Cleaned up: Video deleted successfully.")
+            print("🗑️ Cleaned up: Both original and processed files deleted.")
         else:
             print(f"❌ Webhook Error! Code: {res.status_code}")
-            if os.path.exists(output_path): os.remove(output_path)
+            if os.path.exists(output_path): 
+                os.remove(output_path)
             
     except Exception as e:
         print(f"❌ Upload failed: {e}")
-        if os.path.exists(output_path): os.remove(output_path)
+        if os.path.exists(output_path): 
+            os.remove(output_path)
 
 if __name__ == "__main__":
     main()
