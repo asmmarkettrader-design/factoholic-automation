@@ -13,7 +13,7 @@ if not GEMINI_API_KEY or not MAKE_WEBHOOK_URL:
     sys.exit(1)
 
 if not MAKE_WEBHOOK_URL.startswith(("http://", "https://")):
-    print(f"❌ Error: BUFFER_WEBHOOK_URL میں https:// غائب ہے!")
+    print("❌ Error: BUFFER_WEBHOOK_URL میں https:// غائب ہے!")
     sys.exit(1)
 
 # جیمنائی کلائنٹ سیٹ اپ
@@ -54,9 +54,8 @@ def main():
         seo_text = response.text
         print("✅ Gemini AI generated SEO successfully!")
     except Exception as e:
-        # 👑 اسمارٹ فال بیک: اگر جیمنائی کا کوٹہ ختم ہو تو اسکرپٹ رکے گی نہیں
         print(f"⚠️ Gemini API Error (Quota/Limit reached): {e}")
-        print("💡 جیمنائی کا کوٹہ ختم ہے، اسمارٹ بیک اپ SEO ایکٹیویٹ کیا جا رہا ہے تا کہ کام نہ رکے...")
+        print("💡 اسمارٹ بیک اپ SEO ایکٹیویٹ کیا جا رہا ہے تا کہ کام نہ رکے...")
         
         clean_tag = topic.replace(" ", "").replace("'", "").replace("😱", "")
         seo_text = (
@@ -69,22 +68,23 @@ def main():
     print(f"🎬 [ANTI-COPYRIGHT] Processing pixels for: {video_filename}")
     print("✅ Video metadata & algorithm bypass cleaned!")
 
-    # === میک ڈاٹ کام ویب ہک پر ڈیٹا بھیجنا ===
-    print("🚀 Forwarding unique payload to Make.com Webhook...")
+    # === میک ڈاٹ کام ویب ہک پر اصل ویڈیو فائل بھیجنا ===
+    print("🚀 Uploading actual Video File & Data to Make.com Webhook...")
     
-    payload = {
+    # اب ہم JSON کی بجائے Multipart Form Data بھیجیں گے
+    data = {
         "video_name": video_filename,
         "topic": topic,
-        "seo_data": seo_text,
-        "video_path": video_path
-    }
-    
-    headers = {
-        "Content-Type": "application/json"
+        "seo_data": seo_text
     }
     
     try:
-        res = requests.post(MAKE_WEBHOOK_URL, json=payload, headers=headers)
+        # ویڈیو کو 'rb' (Read Binary) موڈ میں کھول کر اپلوڈ کرنا
+        with open(video_path, 'rb') as f:
+            files = {
+                "video_file": (video_filename, f, "video/mp4")
+            }
+            res = requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
         
         if res.status_code in [200, 201, 202]:
             print(f"✅ Webhook accepted successfully! Code: {res.status_code}")
