@@ -1,104 +1,111 @@
 import os
-import sys
 import requests
+from moviepy.editor import VideoFileClip
 from google import genai
 
-# 1. کانفیگریشن
+# کانفیگریشن اور سیٹنگز
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MAKE_WEBHOOK_URL = os.getenv("BUFFER_WEBHOOK_URL")
 VIDEOS_DIR = "videos"
+HISTORY_FILE = "history.txt"
 
-if not GEMINI_API_KEY or not MAKE_WEBHOOK_URL:
-    print("❌ Missing Environment Variables: GEMINI_API_KEY or BUFFER_WEBHOOK_URL")
-    sys.exit(1)
+# جیمنائی کلائنٹ کی شروعات
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
-if not MAKE_WEBHOOK_URL.startswith(("http://", "https://")):
-    print("❌ Error: BUFFER_WEBHOOK_URL میں https:// غائب ہے!")
-    sys.exit(1)
+def get_history():
+    """پہلے سے اپلوڈ شدہ ویڈیوز کی لسٹ پڑھنا"""
+    if not os.path.exists(HISTORY_FILE):
+        return set()
+    with open(HISTORY_FILE, "r") as f:
+        return set(line.strip() for line in f)
 
-# جیمنائی کلائنٹ سیٹ اپ
-client = genai.Client(api_key=GEMINI_API_KEY)
+def add_to_history(filename):
+    """نئی اپلوڈ ہونے والی ویڈیو کو ہسٹری میں لکھنا"""
+    with open(HISTORY_FILE, "a") as f:
+        f.write(filename + "\n")
 
-def get_first_video(directory):
-    if not os.path.exists(directory):
-        print(f"❌ فولڈر '{directory}' موجود نہیں ہے۔")
-        return None
+def process_video(input_path, output_path):
+    """فٹ پرنٹس ختم کرنے اور کاپی رائٹ سے بچنے کے لیے ویڈیو پروسیسنگ"""
+    clip = VideoFileClip(input_path)
+    # ہلکا سا زوم (1.01) تاکہ فٹ پرنٹ بدلے، ٹیکسٹ سیدھا رہے اور آواز آگے پیچھے نہ ہو
+    processed_clip = clip.fx(lambda c: c.resize(1.01))
+    processed_clip.write_videofile(output_path, codec="libx264", audio_codec="aac")
+    clip.close()
+    processed_clip.close()
+
+def generate_seo(topic_name):
+    """جیمنائی کے ذریعے وائرل ایس ای او ڈیٹا بنانا"""
+    if not client:
+        return f"Title: {topic_name} 😱 | Viral Facts\n\nDescription: Amazing facts about {topic_name}. Subscribe for more!\n\nTags: #Shorts #Facts #Viral"
     
-    supported_extensions = ('.mp4', '.mkv', '.avi', '.mov')
-    for file in sorted(os.listdir(directory)):
-        if file.lower().endswith(supported_extensions):
-            return os.path.join(directory, file)
-    return None
-
-def main():
-    video_path = get_first_video(VIDEOS_DIR)
-    
-    if not video_path:
-        print("🎉 فولڈر میں کوئی ویڈیو باقی نہیں ہے! تمام ویڈیوز پروسیس ہو چکی ہیں۔")
-        return
-
-    video_filename = os.path.basename(video_path)
-    print(f"🎬 پروسیسنگ کے لیے ویڈیو مل گئی ہے: {video_filename}")
-
-    # ٹاپک الگ کرنا
-    topic = video_filename.split("__")[0] if "__" in video_filename else os.path.splitext(video_filename)[0]
-    
-    # === جیمنائی اے آئی پروسیسنگ ===
-    print(f"🤖 [GEMINI AI] Creating Viral SEO for Topic: {topic}")
     try:
-        prompt = f"Create a viral SEO title, description, and tags for a short video about: {topic}. Return response in clean text."
+        prompt = f"Create an engaging, viral title, a short description, and trending hashtags for a YouTube Short / TikTok video about: {topic_name}. Keep it clean and optimized for SEO."
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
         )
-        seo_text = response.text
-        print("✅ Gemini AI generated SEO successfully!")
+        return response.text
     except Exception as e:
-        print(f"⚠️ Gemini API Error (Quota/Limit reached): {e}")
-        print("💡 اسمارٹ بیک اپ SEO ایکٹیویٹ کیا جا رہا ہے تا کہ کام نہ رکے...")
-        
-        clean_tag = topic.replace(" ", "").replace("'", "").replace("😱", "")
-        seo_text = (
-            f"Title: {topic} 😱 | Viral Facts\n\n"
-            f"Description: Mind-blowing facts about {topic} that you didn't know! Watch till the end to find out.\n\n"
-            f"Tags: #{clean_tag}, #Shorts, #Viral, #Facts, #Factoholic"
-        )
+        print(f"⚠️ Gemini SEO Error: {e}")
+        return f"Title: {topic_name} 😱 | Viral Facts\n\nDescription: Amazing facts about {topic_name}. Subscribe for more!\n\nTags: #Shorts #Facts #Viral"
 
-    # === اینٹی کاپی رائٹ پکسل کلیننگ ===
-    print(f"🎬 [ANTI-COPYRIGHT] Processing pixels for: {video_filename}")
-    print("✅ Video metadata & algorithm bypass cleaned!")
+def main():
+    if not os.path.exists(VIDEOS_DIR):
+        os.makedirs(VIDEOS_DIR)
+        print(f"📁 '{VIDEOS_DIR}' کا فولڈر بنا دیا گیا ہے۔ اس میں ویڈیوز رکھیں۔")
+        return
 
-    # === میک ڈاٹ کام ویب ہک پر اصل ویڈیو فائل بھیجنا ===
-    print("🚀 Uploading actual Video File & Data to Make.com Webhook...")
+    history = get_history()
+    files = [f for f in os.listdir(VIDEOS_DIR) if f.lower().endswith(('.mp4', '.mov'))]
+    target_video = None
     
-    # اب ہم JSON کی بجائے Multipart Form Data بھیجیں گے
-    data = {
-        "video_name": video_filename,
-        "topic": topic,
-        "seo_data": seo_text
-    }
-    
-    try:
-        # ویڈیو کو 'rb' (Read Binary) موڈ میں کھول کر اپلوڈ کرنا
-        with open(video_path, 'rb') as f:
-            files = {
-                "video_file": (video_filename, f, "video/mp4")
-            }
-            res = requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
-        
-        if res.status_code in [200, 201, 202]:
-            print(f"✅ Webhook accepted successfully! Code: {res.status_code}")
-            print(f"🗑️ Deleting processed video from folder: {video_path}")
-            os.remove(video_path)
-        else:
-            print(f"❌ Webhook rejected with code: {res.status_code}")
-            print(f"Make.com Response: {res.text}")
-            print("⚠️ ویڈیو ڈیلیٹ نہیں کی گئی تاکہ ڈیٹا ضائع نہ ہو۔")
-            sys.exit(1)
+    # ایسی ویڈیو ڈھونڈنا جو ہسٹری میں نہ ہو
+    for f in files:
+        if f not in history:
+            target_video = f
+            break
             
+    if not target_video:
+        print("✅ تمام ویڈیوز اپلوڈ ہو چکی ہیں یا کوئی نئی ویڈیو نہیں ملی۔")
+        return
+
+    input_path = os.path.join(VIDEOS_DIR, target_video)
+    output_path = os.path.join(VIDEOS_DIR, "processed_" + target_video)
+    
+    print(f"🎬 Processing Video: {target_video}")
+    try:
+        process_video(input_path, output_path)
     except Exception as e:
-        print(f"❌ Error sending data to Make.com: {e}")
-        sys.exit(1)
+        print(f"❌ ویڈیو ایڈیٹنگ فیل ہو گئی: {e}")
+        return
+    
+    print("🤖 Generating SEO with Gemini...")
+    topic = os.path.splitext(target_video)[0]
+    seo_text = generate_seo(topic)
+    
+    print("🚀 Sending to Make.com Webhook...")
+    try:
+        with open(output_path, 'rb') as f:
+            files_dict = {"video_file": (target_video, f, "video/mp4")}
+            data_dict = {"video_name": target_video, "seo_data": seo_text, "topic": topic}
+            res = requests.post(MAKE_WEBHOOK_URL, data=data_dict, files=files_dict)
+            
+        if res.status_code in [200, 201]:
+            print("🚀 Make.com پر کامیابی سے اپلوڈ ہو گیا!")
+            add_to_history(target_video)
+            
+            # فائلیں ڈیلیٹ کرنے کا عمل (کلین اپ)
+            os.remove(input_path)
+            os.remove(output_path)
+            print(f"🗑️ Cleaned up: original and processed files for {target_video} deleted.")
+        else:
+            print(f"❌ Webhook Error! Status code: {res.status_code}")
+            if os.path.exists(output_path):
+                os.remove(output_path)
+    except Exception as e:
+        print(f"❌ Upload failed: {e}")
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
 if __name__ == "__main__":
     main()
