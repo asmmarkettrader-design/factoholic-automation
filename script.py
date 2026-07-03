@@ -1,7 +1,7 @@
 import os
 import sys
 import requests
-from google import genai  # جدید آفیشل لائبریری کا استعمال
+from google import genai
 
 # 1. کانفیگریشن
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -12,12 +12,11 @@ if not GEMINI_API_KEY or not MAKE_WEBHOOK_URL:
     print("❌ Missing Environment Variables: GEMINI_API_KEY or BUFFER_WEBHOOK_URL")
     sys.exit(1)
 
-# یو آر ایل چیک کرنے کے لیے سیکیورٹی لیئر
 if not MAKE_WEBHOOK_URL.startswith(("http://", "https://")):
-    print(f"❌ Error: BUFFER_WEBHOOK_URL میں https:// غائب ہے! چیک کریں: {MAKE_WEBHOOK_URL}")
+    print(f"❌ Error: BUFFER_WEBHOOK_URL میں https:// غائب ہے!")
     sys.exit(1)
 
-# جیمنائی کے نئے کلائنٹ کو سیٹ اپ کریں
+# جیمنائی کلائنٹ سیٹ اپ
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def get_first_video(directory):
@@ -41,6 +40,7 @@ def main():
     video_filename = os.path.basename(video_path)
     print(f"🎬 پروسیسنگ کے لیے ویڈیو مل گئی ہے: {video_filename}")
 
+    # ٹاپک الگ کرنا
     topic = video_filename.split("__")[0] if "__" in video_filename else os.path.splitext(video_filename)[0]
     
     # === جیمنائی اے آئی پروسیسنگ ===
@@ -52,9 +52,18 @@ def main():
             contents=prompt,
         )
         seo_text = response.text
+        print("✅ Gemini AI generated SEO successfully!")
     except Exception as e:
-        print(f"⚠️ Gemini API Error: {e}")
-        sys.exit(1)
+        # 👑 اسمارٹ فال بیک: اگر جیمنائی کا کوٹہ ختم ہو تو اسکرپٹ رکے گی نہیں
+        print(f"⚠️ Gemini API Error (Quota/Limit reached): {e}")
+        print("💡 جیمنائی کا کوٹہ ختم ہے، اسمارٹ بیک اپ SEO ایکٹیویٹ کیا جا رہا ہے تا کہ کام نہ رکے...")
+        
+        clean_tag = topic.replace(" ", "").replace("'", "").replace("😱", "")
+        seo_text = (
+            f"Title: {topic} 😱 | Viral Facts\n\n"
+            f"Description: Mind-blowing facts about {topic} that you didn't know! Watch till the end to find out.\n\n"
+            f"Tags: #{clean_tag}, #Shorts, #Viral, #Facts, #Factoholic"
+        )
 
     # === اینٹی کاپی رائٹ پکسل کلیننگ ===
     print(f"🎬 [ANTI-COPYRIGHT] Processing pixels for: {video_filename}")
