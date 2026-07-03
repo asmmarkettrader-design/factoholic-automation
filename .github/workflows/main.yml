@@ -1,50 +1,41 @@
 name: Video Automation Workflow
 
 on:
-  workflow_dispatch: # اس سے آپ جب چاہیں گٹ ہب پر جا کر دستی (Manually) بٹن دبا کر رن کر سکتے ہیں
-  # schedule:
-  #   - cron: '0 */3 * * *' # اگر آپ اسے ہر 3 گھنٹے بعد خود بخود چلانا چاہیں تو اس لائن کو ان-کمنٹ (Uncomment) کر دیں
+  workflow_dispatch:
 
 permissions:
-  contents: write # یہ سب سے اہم ہے تاکہ اسکرپٹ ویڈیو ڈیلیٹ کر کے چینجز کو سیو کر سکے
+  contents: write
 
 jobs:
   run-automation:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. کوڈ کو گٹ ہب رنر پر لانا
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        persist-credentials: true # پش ٹاسک کو آسان بنانے کے لیے
+        persist-credentials: true
 
-    # 2. پائیتھن سیٹ اپ کرنا
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11' # وارننگ ختم کرنے کے لیے پائیتھن 3.11 اپڈیٹ کر دیا ہے
 
-    # 3. ضروری لائبریریز انسٹال کرنا
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests google-generativeai
+        pip install requests google-genai
 
-    # 4. ہماری پائیتھن اسکرپٹ کو رن کرنا
     - name: Run Video Automation Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         BUFFER_WEBHOOK_URL: ${{ secrets.BUFFER_WEBHOOK_URL }}
       run: python script.py
 
-    # 5. پروسیس شدہ ویڈیو کو ریپوزٹری سے پکا ڈیلیٹ کرنا
     - name: Commit and Push Deletion
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add videos/
-        
-        # صرف تب ہی کمٹ کرے گا اگر کوئی ویڈیو واقعی ڈیلیٹ ہوئی ہو، ورنہ ایرر نہیں دے گا
         git diff-index --quiet HEAD || git commit -m "Automated: Deleted processed video"
         git push
