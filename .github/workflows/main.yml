@@ -1,45 +1,50 @@
-name: Factoholic Automated Viral Engine via Webhook
+name: Video Automation Workflow
 
 on:
-  schedule:
-    - cron: '0 4 * * *'   # پاکستانی وقت کے مطابق صبح 9 بجے
-    - cron: '0 14 * * *'  # پاکستانی وقت کے مطابق شام 7 بجے
-  workflow_dispatch:
+  workflow_dispatch: # اس سے آپ جب چاہیں گٹ ہب پر جا کر دستی (Manually) بٹن دبا کر رن کر سکتے ہیں
+  # schedule:
+  #   - cron: '0 */3 * * *' # اگر آپ اسے ہر 3 گھنٹے بعد خود بخود چلانا چاہیں تو اس لائن کو ان-کمنٹ (Uncomment) کر دیں
+
+permissions:
+  contents: write # یہ سب سے اہم ہے تاکہ اسکرپٹ ویڈیو ڈیلیٹ کر کے چینجز کو سیو کر سکے
 
 jobs:
-  viral_upload_slot:
+  run-automation:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository Code
+    # 1. کوڈ کو گٹ ہب رنر پر لانا
+    - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        persist-credentials: true # پش ٹاسک کو آسان بنانے کے لیے
 
-    - name: Configure Python Environment
-      uses: actions/setup-python@v4
+    # 2. پائیتھن سیٹ اپ کرنا
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Mount FFmpeg Engine & Packages
+    # 3. ضروری لائبریریز انسٹال کرنا
+    - name: Install Dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
-        pip install google-genai requests
+        python -m pip install --upgrade pip
+        pip install requests google-generativeai
 
-    - name: Run Factoholic Automation Script
+    # 4. ہماری پائیتھن اسکرپٹ کو رن کرنا
+    - name: Run Video Automation Script
       env:
-        BUFFER_WEBHOOK_URL: ${{ secrets.BUFFER_WEBHOOK_URL }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        BUFFER_WEBHOOK_URL: ${{ secrets.BUFFER_WEBHOOK_URL }}
       run: python script.py
 
-    - name: Secure Git History Auto-Sync
+    # 5. پروسیس شدہ ویڈیو کو ریپوزٹری سے پکا ڈیلیٹ کرنا
+    - name: Commit and Push Deletion
       run: |
-        git config --global user.name "Factoholic Action Bot"
-        git config --global user.email "actions@github.com"
-        git add uploaded_history.txt || true
-        git add videos/ || true
-        git stash || true
-        git pull --rebase origin main || true
-        git stash pop || true
-        git add uploaded_history.txt videos/ || true
-        git commit -m "🤖 Bot Log: Synced workspace history" || true
-        git push origin main || true
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add videos/
+        
+        # صرف تب ہی کمٹ کرے گا اگر کوئی ویڈیو واقعی ڈیلیٹ ہوئی ہو، ورنہ ایرر نہیں دے گا
+        git diff-index --quiet HEAD || git commit -m "Automated: Deleted processed video"
+        git push
