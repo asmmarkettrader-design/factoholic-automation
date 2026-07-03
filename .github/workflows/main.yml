@@ -1,9 +1,9 @@
 name: Auto Upload Daily
 on:
   schedule:
-    # روزانہ پاکستان کے شام 6:00 بجے چلے گا (13:00 UTC)
+    # 13:00 UTC کا مطلب پاکستان کا شام 6:00 بجے اور انڈیا کا 6:30 بجے ہے
     - cron: '0 13 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # یہ لائن مینوئل رن (جب بھی آپ خود بٹن دبائیں) کے لیے ہے
 
 jobs:
   upload:
@@ -31,9 +31,10 @@ jobs:
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          # ہسٹری فائل کو سٹیج کرنا
+          # اگر ہسٹری فائل نہیں بنی تو یہ خود بنا لے گا تاکہ ایرر نہ آئے
+          touch history.txt  
           git add history.txt
-          # ویڈیوز فولڈر میں ہونے والی تمام تبدیلیاں (ڈیلیٹ ہونا) سٹیج کرنا
-          git add -A videos/
+          # ویڈیوز کے فولڈر سے جو بھی فائل ڈیلیٹ ہوئی ہے، اسے اپڈیٹ کرنا
+          git add -A videos/ || true
           git commit -m "Auto-update: History logged and processed video removed" || echo "No changes to commit"
           git push
